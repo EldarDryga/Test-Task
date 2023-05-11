@@ -1,21 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.6;
 pragma abicoder v2;
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract traid is SwapToken, ERC721, Ownable {
-    using SafeCast for uint256;
+contract traide is ERC721, Ownable {
     struct tokenInfo {
         address tokenAddress;
         uint256 amountOfToken;
         uint256 price;
         uint256 ownerFee;
     }
+    using Counters for Counters.Counter;
+    Counters.Counter private _tokenIdCounter;
+
     IERC20 private exactToken;
     struct NFTData {
         uint256 tokenId;
@@ -32,23 +34,23 @@ contract traid is SwapToken, ERC721, Ownable {
     function mintNFTforTokens(address _tokenAddress) public {
         require(
             _tokenAddress != address(0) &&
-                _tokenAddress.isAddressExists == true,
+                isAddressExists(_tokenAddress) == true,
             "Invalid address"
         );
         exactToken = IERC20(_tokenAddress);
 
-        exactToken.safeTransferFrom(
+        exactToken.transferFrom(
             msg.sender,
             address(this),
             InfoOfToken[_tokenAddress].price
         );
-        InfoOfToken[_tokenAddress].amountOfToken += price;
+        InfoOfToken[_tokenAddress].amountOfToken +=  InfoOfToken[_tokenAddress].price;
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
         _safeMint(msg.sender, tokenId);
-        nftData[_tokenId].owner = msg.sender;
-        nftData[_tokenId].tokenId = tokenId;
-        nftData[_tokenId].usedToken = _tokenAddress;
+        nftData[tokenId].owner = msg.sender;
+        nftData[tokenId].tokenId = tokenId;
+        nftData[tokenId].usedToken = _tokenAddress;
     }
 
     function addToken(address _tokenAddress, uint256 _price) public onlyOwner {
@@ -60,9 +62,9 @@ contract traid is SwapToken, ERC721, Ownable {
     function removeToken(address _tokenAddress) public onlyOwner {
         for (uint i = 0; i < addresses.length; i++) {
             if (addresses[i] == _tokenAddress) {
-                removeElement(addresses, i);
+                removeElement(i);
                 return ();
-            } else {
+            } if (i ==addresses.length -1) {
                 revert("No such address");
             }
         }
@@ -72,21 +74,23 @@ contract traid is SwapToken, ERC721, Ownable {
         require(nftData[_tokenId].owner == msg.sender, "You are not an owner");
         address _address = nftData[_tokenId].usedToken;
         exactToken = IERC20(_address);
-        uint amountToReturn = (995 * (InfoOfToken[_tokenAddress].price)) / 1000;
+        uint amountToReturn = (995 * (InfoOfToken[_address].price)) / 1000;
         InfoOfToken[_address].amountOfToken -= amountToReturn;
         InfoOfToken[_address].ownerFee += InfoOfToken[_address].amountOfToken;
 
-        exactToken.safeTransfer(msg.sender, amountToReturn);
-        _burn(tokenId);
+        exactToken.transfer(msg.sender, amountToReturn);
+        _burn(_tokenId);
     }
 
-    function withdrawFee(address _addressOfToken) onlyOwner {
+    function withdrawFee(address _addressOfToken) public onlyOwner {
         require(
             _addressOfToken != address(0) &&
-                _addressOfToken.isAddressExists == true,
+                isAddressExists(_addressOfToken) == true,
             "Invalid address"
         );
-        swapExactInputSingle(InfoOfToken[_address].ownerFee, _addressOfToken);
+        require((InfoOfToken[_addressOfToken].ownerFee) > 0, "No fee yet");
+        uint amountOfFee = InfoOfToken[_addressOfToken].ownerFee;
+        swapExactInputSingle(amountOfFee, _addressOfToken);
     }
 
     function tokensAllowed() public view returns (address[] memory) {
@@ -120,12 +124,13 @@ contract traid is SwapToken, ERC721, Ownable {
         amountOut = swapRouter.exactInputSingle(params);
     }
 
-    function removeElement(address[] storage addresses, uint index) internal {
+    function removeElement(uint index) internal {
         require(index < addresses.length, "Invalid index");
         for (uint i = index; i < addresses.length - 1; i++) {
             addresses[i] = addresses[i + 1];
         }
         addresses.pop();
+
     }
 
     function isAddressExists(address _address) public view returns (bool) {
