@@ -13,8 +13,11 @@
     "typechain": "^8.1.1"
   },
   "dependencies": {
+    "@defi-wonderland/smock": "^2.3.4",
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",
     "@openzeppelin/contracts": "^3.4.2",
+    "@openzeppelin/contracts-upgradeable": "^3.4.2",
+    "@openzeppelin/hardhat-upgrades": "^1.18.0",
     "@uniswap/v3-core": "^1.0.1",
     "@uniswap/v3-periphery": "^1.4.3"
   }

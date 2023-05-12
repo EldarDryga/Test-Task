@@ -1,24 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.6;
 pragma abicoder v2;
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts-upgradeable/utils/CountersUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
 
 /**
  * @title Implementation ERC721 NFT with ERC20 tokens wrapping functionality
  */
-contract traide is ERC721, Ownable {
+contract traide is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     //Data for swap from ERC20 to USDC
-    ISwapRouter public constant swapRouter = ISwapRouter(0xE592427A0AEce92De3Edee1F18E0157C05861564);
     address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     uint24 public constant poolFee = 3000;
     // Counter for id of NFT
-    using Counters for Counters.Counter;
-    Counters.Counter private _tokenIdCounter;
-
+    using CountersUpgradeable for CountersUpgradeable.Counter;
+    CountersUpgradeable.Counter private _tokenIdCounter;
+    ISwapRouter public swapRouter ;
     IERC20 private tokenToExchange;
     //NFT data structure
     struct NFTData {
@@ -34,28 +34,31 @@ contract traide is ERC721, Ownable {
         uint256 ownerFee;
     }
     //mapping for NFT data structure
-    mapping(uint256 => NFTData) nftData;
+    mapping(uint256 => NFTData) public nftData;
     //mapping for ERC20 data structure
-    mapping(address => tokenInfo) InfoOfToken;
+    mapping(address => tokenInfo) public InfoOfToken;
     //array of addresses of ERC20 tokens
     address[] internal addressesOfToken;
 
-    constructor() ERC721("Monkey", "MNK") {}
+function initialize(ISwapRouter _swapRouter) initializer public{
+    __ERC721_init("Monkey", "MNK");
+    __Ownable_init();
+    swapRouter = _swapRouter;
 
+}
     /**
 @dev exchanges ERC20 tokens for NFTs
-@param _addressOfTokenToExchange address of the ERC20 token that is intended to be deposited for NFT
+@param _addrOfTokenToExchange address of the ERC20 token that is intended to be deposited for NFT
  */
-    function mintNFTforTokens(address _addressOfTokenToExchange) public {
+    function mintNFTforTokens(address _addrOfTokenToExchange) public {
         require(
-            _addressOfTokenToExchange != address(0) &&
-                isAddressExists(_addressOfTokenToExchange) == true,
+            _addrOfTokenToExchange != address(0) &&
+                isAddressExists(_addrOfTokenToExchange) == true,
             "Invalid address"
         );
 
-        tokenToExchange = IERC20(_addressOfTokenToExchange);
-        InfoOfToken[_addressOfTokenToExchange].amountOfToken += InfoOfToken[
-            _addrOfTokenToExchange
+        tokenToExchange = IERC20(_addrOfTokenToExchange);
+        InfoOfToken[_addrOfTokenToExchange].amountOfToken += InfoOfToken[_addrOfTokenToExchange
         ].price;
 
         uint256 tokenId = _tokenIdCounter.current();
@@ -68,13 +71,13 @@ contract traide is ERC721, Ownable {
         tokenToExchange.transferFrom(
             msg.sender,
             address(this),
-            InfoOfToken[_tokenAddress].price
+            InfoOfToken[_addrOfTokenToExchange].price
         );
         _safeMint(msg.sender, tokenId);
     }
 /**
 @dev allows to add ERC20 tokens to allowed tokens registry
-@param _addressOfTokenToExchange address of the ERC20 token that is intended to be added in allowed registry
+@param _addrOfTokenToExchange address of the ERC20 token that is intended to be added in allowed registry
 @param _price sets the price for 1 NFT of this ERC20 token
  */  
     function addToken(
@@ -88,7 +91,7 @@ contract traide is ERC721, Ownable {
     }
 /**
 @dev allows to remove ERC20 tokens from allowed tokens registry
-@param _addressOfTokenToExchange address of the ERC20 token to remove from allowed registry
+@param _addrOfTokenToExchange address of the ERC20 token to remove from allowed registry
  */  
     function removeToken(address _addrOfTokenToExchange) public onlyOwner {
         for (uint i = 0; i < addressesOfToken.length; i++) {
@@ -108,7 +111,7 @@ contract traide is ERC721, Ownable {
     function burnNFT(uint _tokenId) public {
         require(nftData[_tokenId].owner == msg.sender, "You are not an owner");
         address _addrOfTokenToExchange = nftData[_tokenId].usedToken;
-        tokenToExchange = IERC20(_address);
+        tokenToExchange = IERC20(_addrOfTokenToExchange);
         uint amountToReturn = (995 *
             (InfoOfToken[_addrOfTokenToExchange].price)) / 1000;
         InfoOfToken[_addrOfTokenToExchange].amountOfToken -= amountToReturn;
@@ -121,7 +124,7 @@ contract traide is ERC721, Ownable {
     }
 /**
 @dev Allows to withdraw fees from an exact ERC20 token
-@param _addressOfTokenToExchange address of the ERC20 token that is intended to be deposited for NFT
+@param _addressOfToken address of the ERC20 token that is intended to be deposited for NFT
  */  
     function withdrawFee(address _addressOfToken) public onlyOwner {
         require(
