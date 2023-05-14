@@ -13,7 +13,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol";
  */
 contract traide is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     //Data for swap from ERC20 to USDC
-    address public constant USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public USDC;
     uint24 public constant poolFee = 3000;
     // Counter for id of NFT
     using CountersUpgradeable for CountersUpgradeable.Counter;
@@ -38,12 +38,13 @@ contract traide is Initializable, ERC721Upgradeable, OwnableUpgradeable {
     //mapping for ERC20 data structure
     mapping(address => tokenInfo) public InfoOfToken;
     //array of addresses of ERC20 tokens
-    address[] internal addressesOfToken;
+    address[] public addressesOfToken;
 
-function initialize(ISwapRouter _swapRouter) initializer public{
+function initialize(ISwapRouter _swapRouter, address _USDC) initializer public{
     __ERC721_init("Monkey", "MNK");
     __Ownable_init();
     swapRouter = _swapRouter;
+    USDC = _USDC;
 
 }
     /**
@@ -84,6 +85,9 @@ function initialize(ISwapRouter _swapRouter) initializer public{
         address _addrOfTokenToExchange,
         uint256 _price
     ) public onlyOwner {
+        require(_addrOfTokenToExchange != address(0x0000000000000000000000000000000000000000), "Invalid address");
+        require(_price > 0, "Price is lower or equal zero");
+
         InfoOfToken[_addrOfTokenToExchange]
             .tokenAddress = _addrOfTokenToExchange;
         InfoOfToken[_addrOfTokenToExchange].price = _price;
@@ -124,7 +128,7 @@ function initialize(ISwapRouter _swapRouter) initializer public{
     }
 /**
 @dev Allows to withdraw fees from an exact ERC20 token
-@param _addressOfToken address of the ERC20 token that is intended to be deposited for NFT
+@param _addressOfToken address of the ERC20 token that is intended to be swapped and withdrawed in USDC
  */  
     function withdrawFee(address _addressOfToken) public onlyOwner {
         require(
